@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -287,4 +289,31 @@ func (s *SlackConn) SendMessage(username, message, channel string) error {
 	respObj, err := s.SendAPI("chat.postMessage", params)
 	log.Println(respObj)
 	return err
+}
+
+func (s *SlackConn) ParseMessage(message string) string {
+	re := regexp.MustCompile(`<(.*?)>`)
+	out := re.ReplaceAllStringFunc(message, func(in string) string {
+		in = in[1 : len(in)-1]
+		if len(in) < 2 {
+			return in
+		}
+		fields := strings.Split(in, "|")
+		if len(fields) == 2 {
+			return fields[1]
+		}
+		switch {
+		case in[:2] == "@U":
+			return "@" + s.Users[in[1:]].Name()
+		case in[:2] == "#C":
+			return "#" + s.Channels[in[1:]].Name()
+		case in[:1] == "!":
+			return in
+		}
+		return in
+	})
+	out = strings.Replace(out, "&amp;", "&", -1)
+	out = strings.Replace(out, "&lt;", "<", -1)
+	out = strings.Replace(out, "&rt;", ">", -1)
+	return out
 }
