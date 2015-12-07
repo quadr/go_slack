@@ -229,8 +229,8 @@ func (s *SlackConn) shutdown() {
 
 	s.connected = false
 	s.ws.Close()
-	s.wg.Wait()
 	close(s.done)
+	s.wg.Wait()
 	s.handler.dispatch(s, Packet{"type": "disconnected"})
 }
 
