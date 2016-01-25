@@ -154,6 +154,7 @@ func (s *SlackConn) getPacketId() uint32 {
 
 func (s *SlackConn) ping() {
 	tick := time.NewTicker(10 * time.Second)
+	stop := make(chan struct{})
 	for {
 		select {
 		case <-tick.C:
@@ -166,16 +167,20 @@ func (s *SlackConn) ping() {
 				select {
 				case packet, ok := <-s.pong:
 					if uint32(packet["reply_to"].(float64)) != packetId || !ok {
-						s.wg.Done()
-						s.shutdown()
+						close(stop)
 					}
 				case <-time.After(10 * time.Second):
 					log.Println("ping timeout!")
-					s.wg.Done()
-					s.shutdown()
+					close(stop)
 				}
 			}()
 		case <-s.done:
+			s.wg.Done()
+			s.shutdown()
+			return
+		case <-stop:
+			s.wg.Done()
+			s.shutdown()
 			return
 		}
 	}
@@ -314,6 +319,6 @@ func (s *SlackConn) ParseMessage(message string) string {
 	})
 	out = strings.Replace(out, "&amp;", "&", -1)
 	out = strings.Replace(out, "&lt;", "<", -1)
-	out = strings.Replace(out, "&rt;", ">", -1)
+	out = strings.Replace(out, "&gt;", ">", -1)
 	return out
 }
