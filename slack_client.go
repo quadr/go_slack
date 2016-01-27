@@ -210,16 +210,22 @@ func (s *SlackConn) reader() {
 }
 
 func (s *SlackConn) writer() {
+	stop := make(chan struct{})
 	for {
 		select {
 		case packet := <-s.send:
 			s.ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			err := websocket.JSON.Send(s.ws, packet)
 			if err != nil {
-				s.wg.Done()
-				s.shutdown()
+				close(stop)
 			}
 		case <-s.done:
+			s.wg.Done()
+			s.shutdown()
+			return
+		case <-stop:
+			s.wg.Done()
+			s.shutdown()
 			return
 		}
 	}
