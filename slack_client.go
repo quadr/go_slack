@@ -172,6 +172,8 @@ func (s *SlackConn) ping() {
 				case <-time.After(10 * time.Second):
 					log.Println("ping timeout!")
 					close(stop)
+				case <-stop:
+					return
 				}
 			}()
 		case <-s.done:
